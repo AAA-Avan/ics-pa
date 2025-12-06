@@ -28,6 +28,7 @@ void init_wp_pool();
 static char* rl_gets() {
   static char *line_read = NULL;
 
+  // 释放旧内存，防止内存泄漏
   if (line_read) {
     free(line_read);
     line_read = NULL;
@@ -35,6 +36,7 @@ static char* rl_gets() {
 
   line_read = readline("(nemu) ");
 
+  // 处理历史记录
   if (line_read && *line_read) {
     add_history(line_read);
   }
@@ -47,6 +49,19 @@ static int cmd_c(char *args) {
   return 0;
 }
 
+static int cmd_si(char *args) {
+  uint64_t n = 1;
+
+  if (args != NULL) {
+    if (sscanf(args, "%lu", &n) <= 1) {
+      printf("Invalid step number: %s\n", args);
+      return 0;
+    }
+  }
+
+  cpu_exec(n);
+  return 0;
+}
 
 static int cmd_q(char *args) {
   return -1;
@@ -62,6 +77,7 @@ static struct {
   { "help", "帮帮我我要困死了\n Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
+  { "si", "Step the program for n instructions", cmd_si },
 
   /* TODO: Add more commands */
 
