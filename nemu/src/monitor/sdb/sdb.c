@@ -18,6 +18,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
+#include <memory/vaddr.h>
 
 static int is_batch_mode = false;
 
@@ -78,10 +79,62 @@ static int cmd_info(char *args) {
   }
   else if (strcmp(args, "w") == 0) {
     /* 待实现 */
+    printf("Watchpoint info not implemented yet.\n");
   }
   else {
     printf("Unknown info command '%s'\n", args);
   }
+  return 0;
+}
+
+static int cmd_x(char *args) {
+  /* 1. 检查是否有参数 */
+  if (args == NULL) {
+    printf("Usage: x N EXPR\n");
+    return 0;
+  }
+
+  /* 2. 解析第一个参数 N (扫描长度) */
+  // strtok 第一次调用传入 args
+  char *n_str = strtok(args, " ");
+  if (n_str == NULL) {
+    printf("Error: Missing argument N\n");
+    return 0;
+  }
+
+  int n = 0;
+  // 读取整数 N
+  sscanf(n_str, "%d", &n);
+
+  /* 3. 解析第二个参数 EXPR (起始地址) */
+  // strtok 后续调用传入 NULL
+  char *addr_str = strtok(NULL, " ");
+  if (addr_str == NULL) {
+    printf("Error: Missing argument ADDRESS\n");
+    return 0;
+  }
+
+  vaddr_t addr = 0;
+  // 读取十六进制地址 (例如 "0x80000000")
+  // 这里的 %lx 对应 unsigned long，适配 32/64 位地址比较通用
+  // 也可以用 NEMU 定义的 FMT_WORD 宏，但 %lx 写起来最简单
+  sscanf(addr_str, "%lx", (unsigned long *)&addr);
+
+  /* 4. 循环读取并打印 */
+  printf("Memory content starting at 0x%lx:\n", (unsigned long)addr);
+  
+  for (int i = 0; i < n; i++) {
+    // A. 读取内存：每次读 4 字节 (Guest Memory)
+    word_t data = vaddr_read(addr, 4);
+    
+    // B. 打印结果
+    // 格式：地址(8位十六进制) : 数据(8位十六进制)
+    printf("0x%08lx:  0x%08lx\n", (unsigned long)addr, (unsigned long)data);
+    
+    // C. 移动指针：地址 +4 (因为读了 4 字节)
+    addr += 4;
+  }
+
   return 0;
 }
 
@@ -97,8 +150,10 @@ static struct {
   { "q", "Exit NEMU", cmd_q },
   { "si", "Step the program for n instructions", cmd_si },
   { "info", "Show information about registers or watchpoints", cmd_info },
+  { "x", "Scan memory", cmd_x},
 
 };
+
 
 #define NR_CMD ARRLEN(cmd_table)
 

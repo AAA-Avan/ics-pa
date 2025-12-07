@@ -28,10 +28,12 @@ void isa_reg_display() {
   int length = ARRLEN(regs);
   for (int i = 0; i < length; i ++) {
     printf("reg_name: %s, value: 0x%x\n", regs[i], cpu.gpr[i]);
+    //printf("%-3s = 0x%08x\n", regs[i], cpu.gpr[i]);
   }
   // print pc
   printf("pc: 0x%x\n", cpu.pc);
-  
+  //printf("%-3s = 0x%08x\n", "pc", cpu.pc);
+
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
