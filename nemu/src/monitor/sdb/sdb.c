@@ -65,6 +65,8 @@ static int cmd_si(char *args) {
 }
 
 static int cmd_q(char *args) {
+  // 改成正常退出，不要恐慌
+  nemu_state.state = NEMU_QUIT;
   return -1;
 }
 
