@@ -67,6 +67,24 @@ static int cmd_q(char *args) {
   return -1;
 }
 
+static int cmd_info(char *args) {
+  if (args == NULL) {
+    printf("Usage: info r/w\n");
+    return 0;
+  }
+
+  if (strcmp(args, "r") == 0) {
+    isa_reg_display();
+  }
+  else if (strcmp(args, "w") == 0) {
+    /* 待实现 */
+  }
+  else {
+    printf("Unknown info command '%s'\n", args);
+  }
+  return 0;
+}
+
 static int cmd_help(char *args);
 
 static struct {
@@ -78,8 +96,7 @@ static struct {
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
   { "si", "Step the program for n instructions", cmd_si },
-
-  /* TODO: Add more commands */
+  { "info", "Show information about registers or watchpoints", cmd_info },
 
 };
 
