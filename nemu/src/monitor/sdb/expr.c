@@ -24,7 +24,12 @@ enum {
   TK_NOTYPE = 256, TK_EQ,
 
   /* TODO: Add more token types */
+  TK_DEC,  // 十进制整数 (Decimal)
+  TK_HEX,  // 十六进制整数 (Hexadecimal)
+  TK_REG,  // 寄存器 (Register)
 
+  // 如果你还想支持 !=, &&, || 等多字符运算符，也可以在这里加
+  // TK_NEQ, TK_AND, ...
 };
 
 static struct rule {
@@ -38,7 +43,18 @@ static struct rule {
 
   {" +", TK_NOTYPE},    // spaces
   {"\\+", '+'},         // plus
+  {"-", '-'},           // minus(这里不用转义符号)
+  {"\\*", '*'},         // mutiply
+  {"/", '/'},           // divide
   {"==", TK_EQ},        // equal
+  {"\\(", '('},         // left parenthesis
+  {"\\)", ')'},         // right parenthesis
+
+  {"0x[0-9a-fA-F]+", TK_HEX},    // Hexadecimal: 0x...
+  {"[0-9]+", TK_DEC},            // Decimal
+  {"\\$[a-z0-9]+", TK_REG},      // Register
+
+
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -95,7 +111,25 @@ static bool make_token(char *e) {
          */
 
         switch (rules[i].token_type) {
-          default: TODO();
+          case TK_NOTYPE:
+            break;
+
+          case TK_DEC:
+          case TK_HEX:
+          case TK_REG:
+            tokens[nr_token].type = rules[i].token_type;
+            // 防溢出检查
+            if (substr_len > 31) {
+              panic("Buffer Overflow: token is too long!");
+            }
+            strncpy(tokens[nr_token].str, substr_start, substr_len);
+            nr_token++;
+            break;
+          
+          default:
+            tokens[nr_token].type = rules[i].token_type;
+            nr_token++;
+            return true;
         }
 
         break;
