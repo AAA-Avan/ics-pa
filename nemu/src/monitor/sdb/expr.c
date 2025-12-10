@@ -60,9 +60,10 @@ static struct rule {
 
 };
 
-// ARRLEN是一个自动计算数组长度的宏
+// ARRLEN是一个自动计算数组长度的宏，NR_REGEX是规则的数量
 #define NR_REGEX ARRLEN(rules)
 
+// 接受编译结果的数组，regex_t是regex.h库中定义的数据结构，用来存放编译规则
 static regex_t re[NR_REGEX] = {};
 
 /* Rules are used for many times.
@@ -74,6 +75,7 @@ void init_regex() {
   int ret;
 
   for (i = 0; i < NR_REGEX; i ++) {
+    // 根据rules中的规则，将编译结果存入re数组
     ret = regcomp(&re[i], rules[i].regex, REG_EXTENDED);
     if (ret != 0) {
       regerror(ret, &re[i], error_msg, 128);
@@ -100,6 +102,8 @@ static bool make_token(char *e) {
   while (e[position] != '\0') {
     /* Try all rules one by one. */
     for (i = 0; i < NR_REGEX; i ++) {
+      // 拿re中编译好的规则，去匹配e+position开始的字符串,pmatch存放匹配结果
+      // pmatch.rm_so是匹配到的子串在e+position中的起始位置,不能跳过空格
       if (regexec(&re[i], e + position, 1, &pmatch, 0) == 0 && pmatch.rm_so == 0) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
@@ -166,9 +170,6 @@ static bool check_parentheses(int p, int q) {
 
     /* 致命情况：如果还没扫描到最后 (i < q)，level 就变回 0 了
      * 这说明左边的括号已经闭合了。
-     * 例子: (1 + 2) * (3 + 4)
-     * ^     ^
-     * p     i (level=0)
      * 这虽然首尾是括号，但它们不是“一对”的，不能脱去。
      */
     if (level == 0 && i < q) {
@@ -180,8 +181,8 @@ static bool check_parentheses(int p, int q) {
   return level == 0;
 }
 
-word_t eval(int p, int q) {
-  // 1. Base Case: 错误的区间 (Bad expression)
+word_t eval(int p, int q) {   // p,q是tokens的下标
+  // 1. Base Case: 错误的区间 (Bad expression)去、
   if (p > q) {
     return 0;
   }
