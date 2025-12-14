@@ -54,13 +54,15 @@ WP* new_wp(char *str) {
 
   strcpy(t->expr, str);
 
-  bool success;
+  bool success = true;
   t->old_val = expr(str, &success);
 
   if (!success) {
     printf("Error: Invalid expression when creating watchpoint. \n");
     // 实际上这里最好能回滚 free_wp 的操作，或者 assert(0)
   }
+
+  printf("Watchpoint %d: %s\n", t->NO, t->expr);
 
   return t;
 }
@@ -92,7 +94,7 @@ void free_wp(WP *wp) {
   return ;
 }
 
-bool scan_watchpoints() {
+bool scan_wp() {
   WP *t = head;
   
   while (t != NULL) {
@@ -113,4 +115,31 @@ bool scan_watchpoints() {
   }
   return false;
 
+}
+
+void info_wp() {
+  if (head == NULL) {
+    printf("No watchpoints.\n");
+    return;
+  }
+
+  printf("%-8s %-16s %s\n", "NO", "Expr", "Value");
+
+  WP *p = head;
+  while (p != NULL) {
+    printf("%-8d %-16s %u (0x%x)\n", p->NO, p->expr, p->old_val, p->old_val);
+    p = p->next;
+  }
+}
+
+bool delete_wp(int no) {
+  WP *p = head;
+  while (p != NULL) {
+    if (p->NO == no) {
+      free_wp(p);
+      return true;
+    }
+    p = p->next;
+  }
+  return false;
 }

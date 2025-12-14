@@ -18,6 +18,15 @@
 
 #include <common.h>
 
+typedef struct watchpoint WP;
+
+
 word_t expr(char *e, bool *success);
+
+WP* new_wp(char *str);
+void free_wp(WP *wp);
+bool delete_wp(int no);
+void info_wp();
+bool scan_wp();
 
 #endif

@@ -20,7 +20,19 @@
 #include "sdb.h"
 #include <memory/vaddr.h>
 
+#define NR_CMD ARRLEN(cmd_table)
+
 static int is_batch_mode = false;
+
+static int cmd_help(char *args);
+static int cmd_c(char *args);
+static int cmd_q(char *args);
+static int cmd_si(char *args);
+static int cmd_info(char *args);
+static int cmd_x(char *args);
+static int cmd_p(char *args);
+static int cmd_w(char *args);
+static int cmd_d(char *args); 
 
 void init_regex();
 void init_wp_pool();
@@ -43,6 +55,10 @@ static char* rl_gets() {
   }
 
   return line_read;
+}
+
+void sdb_set_batch_mode() {
+  is_batch_mode = true;
 }
 
 static int cmd_c(char *args) {
@@ -68,25 +84,6 @@ static int cmd_q(char *args) {
   // 改成正常退出，不要恐慌
   nemu_state.state = NEMU_QUIT;
   return -1;
-}
-
-static int cmd_info(char *args) {
-  if (args == NULL) {
-    printf("Usage: info r/w\n");
-    return 0;
-  }
-
-  if (strcmp(args, "r") == 0) {
-    isa_reg_display();
-  }
-  else if (strcmp(args, "w") == 0) {
-    /* 待实现 */
-    printf("Watchpoint info not implemented yet.\n");
-  }
-  else {
-    printf("Unknown info command '%s'\n", args);
-  }
-  return 0;
 }
 
 static int cmd_x(char *args) {
@@ -142,25 +139,72 @@ static int cmd_p(char *args) {
   return 0;
 }
 
-static int cmd_help(char *args);
+
+static int cmd_d(char *args) {
+  if (args == NULL) {
+    printf("Usage: d N \n");
+    return 0;
+  }
+
+  int no;
+  if (sscanf(args, "%d", &no) != 1) {
+    printf("Invalid watchpoint number.\n");
+    return 0;
+  }
+
+  bool success = delete_wp(no);
+  if (success) {
+    printf("Watchpoint %d deleted.\n ", no);
+  } else {
+    printf("Watchpoint %d not found. \n", no);
+  }
+  return 0;
+}
+
+static int cmd_w(char *args) {
+  if (args == NULL) {
+    printf("Usage: w EXPR\n");
+    return 0;
+  }
+  new_wp(args);
+  return 0;
+}
+
+static int cmd_info(char *args) {
+  if (args == NULL) {
+    printf("Usage: info r/w\n");
+    return 0;
+  }
+
+  if (strcmp(args, "r") == 0) {
+    isa_reg_display();
+  }
+  else if (strcmp(args, "w") == 0) {
+    info_wp(); 
+  }
+  else {
+    printf("Unknown info command '%s'\n", args);
+  }
+  return 0;
+}
 
 static struct {
   const char *name;
   const char *description;
   int (*handler) (char *);
 } cmd_table [] = {
-  { "help", "帮帮我我要困死了\n Display information about all supported commands", cmd_help },
+  { "help", "Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
   { "si", "Step the program for n instructions", cmd_si },
-  { "info", "Show information about registers or watchpoints", cmd_info },
+  { "info", "Show infomation about registers (r) or watchpoint (w)", cmd_info},
   { "x", "Scan memory", cmd_x},
   { "p", "Evaluate expression", cmd_p},
+  { "d", "Delete watchpoint", cmd_d},
+  { "w", "Set a new watchpoint", cmd_w},
+
 
 };
-
-
-#define NR_CMD ARRLEN(cmd_table)
 
 static int cmd_help(char *args) {
   /* extract the first argument */
@@ -183,10 +227,6 @@ static int cmd_help(char *args) {
     printf("Unknown command '%s'\n", arg);
   }
   return 0;
-}
-
-void sdb_set_batch_mode() {
-  is_batch_mode = true;
 }
 
 void sdb_mainloop() {
