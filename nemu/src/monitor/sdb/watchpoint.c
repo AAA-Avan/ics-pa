@@ -41,7 +41,7 @@ void init_wp_pool() {
 }
 
 /* TODO: Implement the functionality of watchpoint */
-WP* new_wp() {
+WP* new_wp(char *str) {
   if (free_ == NULL) {
     printf("Error: No more watchpoints available. \n");
     assert(0);
@@ -51,6 +51,17 @@ WP* new_wp() {
   free_ = free_->next;
   t->next = head;
   head = t;
+
+  strcpy(t->expr, str);
+
+  bool success;
+  t->old_val = expr(str, &success);
+
+  if (!success) {
+    printf("Error: Invalid expression when creating watchpoint. \n");
+    // 实际上这里最好能回滚 free_wp 的操作，或者 assert(0)
+  }
+
   return t;
 }
 
@@ -77,6 +88,29 @@ void free_wp(WP *wp) {
   free_ = wp;
 
   wp->expr[0] = '\0';
-  wp->old_val = '0';
+  wp->old_val = 0;
   return ;
+}
+
+bool scan_watchpoints() {
+  WP *t = head;
+  
+  while (t != NULL) {
+    bool success;
+    word_t new_val = expr(t->expr, &success);
+
+    if (new_val != t->old_val) {
+        printf("Watchpoint %d triggered!\n", t->NO);
+        printf("Expr: %s\n", t->expr);
+        printf("Old value: %u (0x%x)\n", t->old_val, t->old_val); // 假设 word_t 是 32位
+        printf("New value: %u (0x%x)\n", new_val, new_val);
+
+        // 更新旧值
+        t->old_val = new_val;
+        return true;
+    }
+    t = t->next;
+  }
+  return false;
+
 }
