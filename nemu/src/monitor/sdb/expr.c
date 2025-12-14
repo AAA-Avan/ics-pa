@@ -19,6 +19,7 @@
  * Type 'man regex' for more information about POSIX regex functions.
  */
 #include <regex.h>
+#include <memory/vaddr.h> // for vaddr_read
 
 static bool check_parentheses(int p, int q);
 static word_t eval(int p, int q);
@@ -31,6 +32,10 @@ enum {
   TK_HEX,  // 十六进制整数 (Hexadecimal)
   TK_REG,  // 寄存器 (Register)
 
+  TK_DEREF,    // 指针解引用 (Pointer Dereference)
+
+  TK_NEQ, TK_AND,
+
   // 如果你还想支持 !=, &&, || 等多字符运算符，也可以在这里加
   // TK_NEQ, TK_AND, ...
 };
@@ -39,23 +44,22 @@ static struct rule {
   const char *regex;
   int token_type;
 } rules[] = {
-
-  /* TODO: Add more rules.
-   * Pay attention to the precedence level of different rules.
-   */
-
   {" +", TK_NOTYPE},    // spaces
   {"\\+", '+'},         // plus
   {"-", '-'},           // minus(这里不用转义符号)
   {"\\*", '*'},         // mutiply
   {"/", '/'},           // divide
   {"==", TK_EQ},        // equal
+  {"!=", TK_NEQ},       // not equal
+  {"&&", TK_AND},       // logical and
   {"\\(", '('},         // left parenthesis
   {"\\)", ')'},         // right parenthesis
 
-  {"0x[0-9a-fA-F]+", TK_HEX},    // Hexadecimal: 0x...
-  {"[0-9]+", TK_DEC},            // Decimal
+  {"0x[0-9a-fA-F]+[uU]?", TK_HEX},    // Hexadecimal: 0x...
+  {"[0-9]+[uU]?", TK_DEC},            // Decimal
   {"\\$[a-z0-9]+", TK_REG},      // Register
+
+
 
 
 };
@@ -182,36 +186,47 @@ static bool check_parentheses(int p, int q) {
 }
 
 word_t eval(int p, int q) {   // p,q是tokens的下标
-  // 1. Base Case: 错误的区间 (Bad expression)去、
+  // 去除错误区间
   if (p > q) {
     return 0;
   }
   
-  // 2. Base Case: 单个 Token (数字或寄存器)
+  // 单个的token
   else if (p == q) {
-    /* Extract the number from tokens[p].str */
     word_t num = 0;
+    /* Extract the number from tokens[p].str */
     if (tokens[p].type == TK_DEC) {
-      sscanf(tokens[p].str, "%d", &num); // 十进制
+      // string to unsigned long long
+      num = strtoull(tokens[p].str, NULL, 10); // 十进制
     } else if (tokens[p].type == TK_HEX) {
-      sscanf(tokens[p].str, "%x", &num); // 十六进制
+      num = strtoull(tokens[p].str, NULL, 16); // 十六进制
     } else if (tokens[p].type == TK_REG) {
-      // 寄存器处理稍微复杂点，你需要调用 isa_reg_str2val
-      // bool success;
-      // num = isa_reg_str2val(tokens[p].str + 1, &success); // +1 跳过 $
+      bool success;
+      // tokens[p].str + 1 用于跳过开头的 '$' 符号
+      num = isa_reg_str2val(tokens[p].str + 1, &success);
+      if (!success) {
+        printf("Error: Unknown register '%s'\n", tokens[p].str);
+        // 在实验阶段，直接 assert(0) 暂停方便调试
+        // 如果是成品 shell，这里应该返回一个错误码
+        assert(0); 
+      }
     }
     return num;
   }
   
-  // 3. Recursive Step: 去除括号
+  // 去除括号
   else if (check_parentheses(p, q) == true) {
-    /* The expression is surrounded by a matched pair of parentheses.
-     * If that is the case, just throw away the parentheses.
-     */
     return eval(p + 1, q - 1);
   }
+
+  // 处理取址
+  else if (tokens[p].type == TK_DEREF) {
+    word_t addr = eval(p + 1, q);
+    // 这里的 4 表示读 4 个字节 (word_t)。vaddr_read 需要包含 <memory/vaddr.h>
+    return vaddr_read(addr, 4); 
+  }
   
-  // 4. Recursive Step: 分割求值 (核心逻辑)
+  // 分割求值 (核心逻辑，算法逻辑在讲义里给出了)
   else {
     // 寻找主运算符 (Main Operator)
     // 规则：1. 括号外的运算符 2. 优先级最低 3. 同优先级最右边
@@ -227,15 +242,14 @@ word_t eval(int p, int q) {   // p,q是tokens的下标
         level++;
       } else if (type == ')') {
         level--;
-      } else if (level == 0 && (type == '+' || type == '-' || type == '*' || type == '/')) {
-        // 只有 level == 0 (在括号外) 的运算符才有资格当主运算符
-        
-        // 定义优先级： */ 是 2， +- 是 1 (数值越大优先级越高)
-        int curr_priority = (type == '*' || type == '/') ? 2 : 1;
+      } else if (level == 0 && (type == '+' || type == '-' || type == '*' || type == '/' || type == TK_EQ || type == TK_NEQ || type == TK_AND)) {
+        int curr_priority = 0;
+        if (type == TK_AND) curr_priority = 0;
+        else if (type == TK_EQ || type == TK_NEQ) curr_priority = 1;
+        else if (type == '+' || type == '-') curr_priority = 2;
+        else if (type == '*' || type == '/') curr_priority = 3;
 
-        // 核心判断：
-        // 如果 op == -1 (还没找到过)，直接认领
-        // 或者 当前优先级 <= 已有的优先级 (找最右边的，所以用 <=)
+        // 核心判断：找优先级最低的，同级找最右边的
         if (op == -1 || curr_priority <= op_priority) {
           op = i;
           op_priority = curr_priority;
@@ -258,6 +272,9 @@ word_t eval(int p, int q) {   // p,q是tokens的下标
       case '/': 
         if (val2 == 0) panic("Division by zero"); // 防止除0
         return val1 / val2;
+      case TK_EQ:  return val1 == val2;
+      case TK_NEQ: return val1 != val2;
+      case TK_AND: return val1 && val2;
       default: assert(0);
     }
   }
@@ -272,6 +289,24 @@ word_t expr(char *e, bool *success) {
     return 0;
   }
 
-  /* TODO: Insert codes to evaluate the expression. */
+  // 区分乘法和指针解引用
+  int i;
+  for (i = 0; i < nr_token; i ++) {
+    if (tokens[i].type == '*') {
+      if (i == 0 
+          || tokens[i-1].type == '+' 
+          || tokens[i-1].type == '-' 
+          || tokens[i-1].type == '*' 
+          || tokens[i-1].type == '/' 
+          || tokens[i-1].type == '('
+          || tokens[i-1].type == TK_EQ 
+          || tokens[i-1].type == TK_NEQ 
+          || tokens[i-1].type == TK_AND 
+          ) {
+        tokens[i].type = TK_DEREF;
+      }
+    }
+  }
+
   return eval(0, nr_token - 1);
 }

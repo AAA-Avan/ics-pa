@@ -37,5 +37,30 @@ void isa_reg_display() {
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
+  *success = true; // 默认假设能找到
+
+  // 1. 检查 PC 指针
+  if (strcmp(s, "pc") == 0) {
+    return cpu.pc;
+  }
+
+  // 2. 特殊处理 $0 寄存器
+  // 用户的 regs 定义里是 "$0"，但 s 传进来通常是 "0" (因为去掉了 $)
+  // 如果不加这个判断，strcmp("0", "$0") 会失败
+  if (strcmp(s, "0") == 0) {
+    return cpu.gpr[0];
+  }
+
+  // 3. 扫描通用寄存器
+  int length = ARRLEN(regs);
+  for (int i = 0; i < length; i ++) {
+    // 对比名字 (注意：这里对比的是 ra, sp, a0 等标准名字)
+    if (strcmp(s, regs[i]) == 0) {
+      return cpu.gpr[i];
+    }
+  }
+
+  // 4. 找不到的情况
+  *success = false;
   return 0;
 }
