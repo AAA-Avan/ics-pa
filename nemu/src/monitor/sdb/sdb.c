@@ -229,7 +229,9 @@ static int cmd_help(char *args) {
   return 0;
 }
 
+// simple debugger
 void sdb_mainloop() {
+  // batch mode 批处理模式
   if (is_batch_mode) {
     cmd_c(NULL);
     return;
