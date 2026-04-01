@@ -18,7 +18,6 @@
 
 #include <common.h>
 
-// cpu的真身藏在这里！
 typedef struct {
   word_t gpr[MUXDEF(CONFIG_RVE, 16, 32)];
   vaddr_t pc;

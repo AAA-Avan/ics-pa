@@ -37,6 +37,8 @@ static int cmd_d(char *args);
 void init_regex();
 void init_wp_pool();
 
+word_t expr(char *e, bool *success);
+
 /* We use the `readline' library to provide more flexibility to read from stdin. */
 static char* rl_gets() {
   static char *line_read = NULL;
@@ -70,7 +72,7 @@ static int cmd_si(char *args) {
   uint64_t n = 1;
 
   if (args != NULL) {
-    if (sscanf(args, "%lu", &n) <= 1) {
+    if (sscanf(args, "%lu", &n) != 1) {
       printf("Invalid step number: %s\n", args);
       return 0;
     }
@@ -92,24 +94,29 @@ static int cmd_x(char *args) {
     return 0;
   }
 
-  char *n_str = strtok(args, " ");
-  if (n_str == NULL) {
-    printf("Error: Missing argument N\n");
-    return 0;
-  }
-
   int n = 0;
-  sscanf(n_str, "%d", &n);
-
-  char *addr_str = strtok(NULL, " ");
-  if (addr_str == NULL) {
-    printf("Error: Missing argument ADDRESS\n");
+  int chars_read = 0;
+  if (sscanf(args, "%d%n", &n, &chars_read) != 1) {
+    printf("Error: Invalid n/N");
     return 0;
   }
 
-  unsigned long long addr_temp = 0;
-  sscanf(addr_str, "%llx", &addr_temp);
-  vaddr_t addr = (vaddr_t)addr_temp;
+  char *expr_str = args + chars_read;
+  while (*expr_str == ' ') {
+    expr_str++;
+  }
+
+  if (*expr_str == '\0') {
+    printf("Error: Missing Expr \n");
+    return 0;
+  }
+
+  bool success = true;
+  vaddr_t addr = expr(expr_str, &success);
+
+  if (!success) {
+    return 0;
+  }
 
   printf("Memory content starting at 0x%lx:\n", (unsigned long)addr);
   
@@ -129,7 +136,7 @@ static int cmd_p(char *args) {
   }
 
   bool success = true;
-  word_t result = expr(args, &success); // 调用expr.c
+  word_t result = expr(args, &success);
 
   if (success) {
     printf("%u\n", (unsigned int) result);
@@ -247,6 +254,7 @@ void sdb_mainloop() {
     /* treat the remaining string as the arguments,
      * which may need further parsing
      */
+    // the '+1' process is to jump the delimited '/0', if you don't remember, man strtok.
     char *args = cmd + strlen(cmd) + 1;
     if (args >= str_end) {
       args = NULL;

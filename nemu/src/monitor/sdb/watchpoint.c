@@ -49,21 +49,28 @@ WP* new_wp(char *str) {
 
   WP *t = free_;
   free_ = free_->next;
-  t->next = head;
-  head = t;
 
-  strcpy(t->expr, str);
-
+  // 1. 先验证表达式的合法性
   bool success = true;
-  t->old_val = expr(str, &success);
+  word_t val = expr(str, &success);
 
   if (!success) {
     printf("Error: Invalid expression when creating watchpoint. \n");
-    // 实际上这里最好能回滚 free_wp 的操作，或者 assert(0)
+    // 🚨 完美回滚：把节点还给 free_ 链表，严禁挂入 head
+    t->next = free_;
+    free_ = t;
+    return NULL;
   }
 
-  printf("Watchpoint %d: %s\n", t->NO, t->expr);
+  // 2. 验证通过后，再执行字符串拷贝和挂载
+  strncpy(t->expr, str, sizeof(t->expr) - 1);
+  t->expr[sizeof(t->expr) - 1] = '\0'; // 防止缓冲区溢出
+  t->old_val = val;
 
+  t->next = head;
+  head = t;
+
+  printf("Watchpoint %d: %s\n", t->NO, t->expr);
   return t;
 }
 
@@ -96,25 +103,27 @@ void free_wp(WP *wp) {
 
 bool scan_wp() {
   WP *t = head;
+  bool changed = false; // 记录是否有任何一个断点被触发
   
   while (t != NULL) {
     bool success;
     word_t new_val = expr(t->expr, &success);
 
-    if (new_val != t->old_val) {
+    // 增加 success 判断，防止运行期表达式失效导致误触发
+    if (success && new_val != t->old_val) {
         printf("Watchpoint %d triggered!\n", t->NO);
         printf("Expr: %s\n", t->expr);
-        printf("Old value: %u (0x%x)\n", t->old_val, t->old_val); // 假设 word_t 是 32位
-        printf("New value: %u (0x%x)\n", new_val, new_val);
+        // 使用 %08x 对齐十六进制输出，更符合黑客审美
+        printf("Old value: %u (0x%08x)\n", t->old_val, t->old_val); 
+        printf("New value: %u (0x%08x)\n", new_val, new_val);
 
-        // 更新旧值
         t->old_val = new_val;
-        return true;
+        changed = true; // 标记已触发，但不立刻 return，继续扫描剩下的
     }
     t = t->next;
   }
-  return false;
-
+  
+  return changed;
 }
 
 void info_wp() {
