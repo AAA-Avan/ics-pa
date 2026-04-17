@@ -76,6 +76,16 @@ READELF   = $(CROSS_COMPILE)readelf
 INC_PATH += $(WORK_DIR)/include $(addsuffix /include/, $(addprefix $(AM_HOME)/, $(LIBS)))
 INCFLAGS += $(addprefix -I, $(INC_PATH))
 
+### 瞎调试看看，用完记得删掉
+# $(info === Debug Info ===)
+# $(info WORK_DIR is: $(WORK_DIR))
+# $(info LIBS is: $(LIBS))
+# $(info AM_HOME is: $(AM_HOME))
+# $(info INC_PATH is: $(INC_PATH))
+# $(info THE SECOND PART IS: $(addsuffix /include/, $(addprefix $(AM_HOME)/, $(LIBS))))
+# $(info INCFLAGS is: $(INCFLAGS))
+# $(info ==================)
+
 ARCH_H := arch/$(ARCH).h
 CFLAGS   += -O2 -MMD -Wall -Werror $(INCFLAGS) \
             -D__ISA__=\"$(ISA)\" -D__ISA_$(shell echo $(ISA) | tr a-z A-Z)__ \
@@ -100,6 +110,10 @@ $(DST_DIR)/%.o: %.c
 	@mkdir -p $(dir $@) && echo + CC $<
 	@$(CC) -std=gnu11 $(CFLAGS) -c -o $@ $(realpath $<)
 
+# $(info === Debug Info ===)
+# $(info $$(DST_DIR)/%.o is: $(DST_DIR)/%.o)
+# $(info === Debug Info ===)
+
 ### Rule (compile): a single `.cc` -> `.o` (g++)
 $(DST_DIR)/%.o: %.cc
 	@mkdir -p $(dir $@) && echo + CXX $<
@@ -109,6 +123,11 @@ $(DST_DIR)/%.o: %.cc
 $(DST_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@) && echo + CXX $<
 	@$(CXX) -std=c++17 $(CXXFLAGS) -c -o $@ $(realpath $<)
+
+# $(info === Debug Info ===)
+# $(info CXX is: $(CXX))
+# $(info CXXFLAGS is: $(CXXFLAGS))
+# $(info === Debug Info ===)
 
 ### Rule (compile): a single `.S` -> `.o` (gcc, which preprocesses and calls as)
 $(DST_DIR)/%.o: %.S
@@ -121,6 +140,13 @@ $(ARCHIVE): $(OBJS)
 	@echo + AR "->" $(shell realpath $@ --relative-to .)
 	@$(AR) rcs $@ $^
 else
+
+# $(info === Debug Info ===)
+# $(info MAKECMDGOALS is: $(MAKECMDGOALS))
+# $(info "archive" is: archive)
+# $(info library name is: $(1))
+# $(info === Debug Info ===)
+
 # $(1): library name
 define LIB_TEMPLATE =
 $$(AM_HOME)/$(1)/build/$(1)-$$(ARCH).a: force
