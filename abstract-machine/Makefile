@@ -30,10 +30,19 @@ ifeq ($(filter $(ARCHS), $(ARCH)), )
   $(error Expected $$ARCH in {$(ARCHS)}, Got "$(ARCH)")
 endif
 
+# $(info === Debug Info ===)
+# $(info ARCH1 is: $(ARCH))
+# $(info ==================)
+
 ### Extract instruction set architecture (`ISA`) and platform from `$ARCH`. Example: `ARCH=x86_64-qemu -> ISA=x86_64; PLATFORM=qemu`
 ARCH_SPLIT = $(subst -, ,$(ARCH))
 ISA        = $(word 1,$(ARCH_SPLIT))
 PLATFORM   = $(word 2,$(ARCH_SPLIT))
+
+# $(info === Debug Info ===)
+# $(info ARCH2 is: $(ARCH))
+# $(info ARCH_SPLIT is: $(ARCH_SPLIT))
+# $(info ==================)
 
 ### Check if there is something to build
 ifeq ($(flavor SRCS), undefined)
