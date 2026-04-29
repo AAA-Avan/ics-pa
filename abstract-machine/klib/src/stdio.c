@@ -63,35 +63,7 @@ int printf(const char *fmt, ...) {
 }
 
 int vsprintf(char *out, const char *fmt, va_list ap) {
-  char *p = out;
-  while (*fmt != '\0') {
-    if (*fmt == '%') {
-      fmt++;
-      switch (*fmt) {
-        case 's': {
-          char *s = va_arg(ap, char *); 
-          while (*s) *p++ = *s++;     
-          break;
-        }
-        case 'd': {
-          int n = va_arg(ap, int);   
-          p += itoa(n, p, 10);         
-          break;
-        }
-        case 'x': {
-          int n = va_arg(ap, int);   
-          p += itoa(n, p, 16);         
-          break;
-        }
-
-      }
-    } else {
-      *p++ = *fmt;
-    }
-    fmt++;
-  }
-  *p = '\0';
-  return p - out;
+  return vsnprintf(out, (size_t)-1, fmt, ap);
 }
 
 int sprintf(char *out, const char *fmt, ...) {
@@ -103,11 +75,63 @@ int sprintf(char *out, const char *fmt, ...) {
 }
 
 int snprintf(char *out, size_t n, const char *fmt, ...) {
-  panic("Not implemented");
+  va_list ap;
+  va_start(ap, fmt);
+  int ret = vsnprintf(out, n, fmt, ap);
+  va_end(ap);
+  return ret;
 }
 
 int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
-  panic("Not implemented");
+  // 如果缓冲池大小为 0，直接返回（根据 C 标准要求）
+  if (n == 0) return 0;
+
+  size_t count = 0; // 记录真实写入了多少个字符
+  
+  while (*fmt != '\0' && count < n - 1) { // 核心：绝对不能超过 n - 1
+    if (*fmt == '%') {
+      fmt++;
+      switch (*fmt) {
+        case 's': {
+          char *s = va_arg(ap, char *); 
+          if (s == NULL) s = "(null)"; // 防御性编程：防止传入空指针引发缺页异常
+          while (*s && count < n - 1) {
+            out[count++] = *s++;
+          }
+          break;
+        }
+        case 'd': {
+          int val = va_arg(ap, int);
+          char tmp_buf[32]; // 32 字节足够装下 32 位整数的字符串了
+          itoa(val, tmp_buf, 10); // 先转到临时缓冲区
+          
+          char *t = tmp_buf;
+          while (*t && count < n - 1) { // 安全拷贝
+            out[count++] = *t++;
+          }
+          break;
+        }
+        case 'x': {
+          int val = va_arg(ap, int);
+          char tmp_buf[32];
+          itoa(val, tmp_buf, 16);
+          
+          char *t = tmp_buf;
+          while (*t && count < n - 1) {
+            out[count++] = *t++;
+          }
+          break;
+        }
+        // 你还可以在这里实现 %c 等其他格式
+      }
+    } else {
+      out[count++] = *fmt;
+    }
+    fmt++;
+  }
+  
+  out[count] = '\0'; // 最后的封口，极其重要！
+  return count;
 }
 
 #endif
