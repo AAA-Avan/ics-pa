@@ -5,8 +5,8 @@
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
+
 // 内部辅助函数：整数转字符串，并返回写入的长度
-// ai实现的
 static int itoa(int value, char *str, int base) {
     char *ptr = str;
     char *start = str;
@@ -59,7 +59,27 @@ static int itoa(int value, char *str, int base) {
 }
 
 int printf(const char *fmt, ...) {
-  panic("Not implemented");
+  // 1. 申请一个足够大的临时局部缓冲区（分配在栈上）
+  // 裸机环境下一般不会打印超长文本，1024 字节通常绰绰有余
+  char out[1024]; 
+
+  // 2. 打包变长参数盲盒
+  va_list ap;
+  va_start(ap, fmt);
+
+  // 3. 呼叫你的中央引擎！把排版好的字符串填入 out 数组
+  // （如果你已经把 vsprintf 重构成了调用 vsnprintf，这里依旧可以完美兼容）
+  int ret = vsprintf(out, fmt, ap); 
+
+  va_end(ap);
+
+  // 4. 将排版好的字符，通过底层硬件接口逐个砸向终端屏幕
+  for (int i = 0; i < ret; i++) {
+    putch(out[i]);
+  }
+
+  // 5. 返回实际打印的字符总数
+  return ret;
 }
 
 int vsprintf(char *out, const char *fmt, va_list ap) {

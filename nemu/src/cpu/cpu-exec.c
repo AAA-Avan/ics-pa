@@ -17,6 +17,7 @@
 #include <cpu/decode.h>
 #include <cpu/difftest.h>
 #include <locale.h>
+#include <trace.h>
 
 bool scan_wp();
 
@@ -76,6 +77,8 @@ static void exec_once(Decode *s, vaddr_t pc) {
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
   disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
       MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst, ilen);
+  
+  iringbuf_write(s->logbuf);
 #endif
 }
 
@@ -100,6 +103,7 @@ static void statistic() {
 }
 
 void assert_fail_msg() {
+  iringbuf_print();
   isa_reg_display();
   statistic();
 }
