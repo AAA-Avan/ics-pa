@@ -151,12 +151,19 @@ config ITRACE_COND
   string "Only trace instructions when the condition is true"
   default "true"
 
-  config WATCHPOINT
-    bool "Enable watchpoint"
-    default n
-    help
-      Enable watchpoint functionality
-      When enabled, you can set watchpoints to pause program execution when the value of an expression changes
+config MTRACE
+depends on TRACE
+bool "Enable memory tracer"
+default y
+help
+  Enable tracing of physical memory read/write operations.
+
+config WATCHPOINT
+  bool "Enable watchpoint"
+  default n
+  help
+    Enable watchpoint functionality
+    When enabled, you can set watchpoints to pause program execution when the value of an expression changes
 
 config DIFFTEST
   depends on TARGET_NATIVE_ELF

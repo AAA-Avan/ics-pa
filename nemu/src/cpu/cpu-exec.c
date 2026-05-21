@@ -57,12 +57,14 @@ static void exec_once(Decode *s, vaddr_t pc) {
 #ifdef CONFIG_ITRACE
   char *p = s->logbuf;
   p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);
+  // Instruction Length
   int ilen = s->snpc - s->pc;
   int i;
   uint8_t *inst = (uint8_t *)&s->isa.inst;
 #ifdef CONFIG_ISA_x86
   for (i = 0; i < ilen; i ++) {
 #else
+// RISC-V uses little-endian ordering, so we iterate in reverse.
   for (i = ilen - 1; i >= 0; i --) {
 #endif
     p += snprintf(p, 4, " %02x", inst[i]);
